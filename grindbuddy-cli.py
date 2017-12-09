@@ -879,15 +879,16 @@ class EventHandler():
         print "\tMissions sorted by reward: %s total" % format(sum([x[0] for x in missions]), ',')
         strlen = len(format(self.spaceship.missions[missions[0][1]]['Reward'], ','))  # This tells us how much to indent the lesser amounts of money
         for num in range(len(missions)):
-            print "\t\t%s%s: %s - %s" % (' ' * (strlen - len(format(missions[num][0], ','))), format(missions[num][0], ','), self.spaceship.missions[missions[num][1]]['DestinationSystem'], self.spaceship.missions[missions[num][1]]['DestinationStation'])
+            print "\t\t%s%s: %s - %s" % (' ' * (strlen - len(format(missions[num][0], ','))), format(missions[num][0], ','), self.spaceship.missions[missions[num][1]].get('DestinationSystem', 'None'),
+                                         self.spaceship.missions[missions[num][1]].get('DestinationStation', 'None'))
     def printMissionsByExpirationTime(self):
         "prints a list of missions sorted by expiration time. returns nothing."
         missions = self.spaceship.missions.getSortedExpiration()
         # calculate how long you have until the earliest mission expires so we can put that with the header
         print "\tMissions sorted by expiration time: %s until first expiration" % self.getTimeDifference(datetime.datetime.now(), self.convertToLocalTime(missions[0][0]))
         for num in range(len(missions)):
-            print "\t\t%s: %s - %s" % (self.convertToLocalTime(missions[num][0]).strftime('%m/%d/%Y %H:%M:%S %Z'), self.spaceship.missions[missions[num][1]][
-                'DestinationSystem'], self.spaceship.missions[missions[num][1]]['DestinationStation'])
+            print "\t\t%s: %s - %s" % (self.convertToLocalTime(missions[num][0]).strftime('%m/%d/%Y %H:%M:%S %Z'), self.spaceship.missions[missions[num][1]].get('DestinationSystem', 'None'),
+                                       self.spaceship.missions[missions[num][1]].get('DestinationStation', 'None'))
     ################################ EVENTS ##########################################################
     # All events MUST be named exactly as they are in the config file, but with spaces removed
     # Event methods may have a initialization method with the same name with _init after it. These methods take no parameters
