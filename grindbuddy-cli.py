@@ -1044,21 +1044,22 @@ class EventHandler():
         try: # Try recording the type of star if this was a StartJump event
             self.star_class = journalentry['StarClass']
         except KeyError: # this was the FSDJump event, so do the actual announcing.
-            if self.star_class in self.scoopable_star_types:
-                midphrase = ''
-            else:
-                midphrase = 'not '
-            phrase = "This star is %sscoopable." % midphrase
-            # Do the scoopable star stuff:
-            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
-                print phrase
-            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
-                self.tts.speak(phrase, nospam=20)
-            # Do the unscoopable star stuff:
-            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
-                print phrase
-            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
-                self.tts.speak(phrase, nospam=20)
+            if journalentry['JumpType'] == 'Hyperspace':
+                if self.star_class in self.scoopable_star_types:
+                    midphrase = ''
+                else:
+                    midphrase = 'not '
+                phrase = "This star is %sscoopable." % midphrase
+                # Do the scoopable star stuff:
+                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
+                    print phrase
+                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
+                    self.tts.speak(phrase, nospam=20)
+                # Do the unscoopable star stuff:
+                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
+                    print phrase
+                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
+                    self.tts.speak(phrase, nospam=20)
     def AnnounceUnscoopableStar_init(self):
         self.AnnounceScoopableStar_init()
     def AnnounceUnscoopableStar(self, journalentry):
