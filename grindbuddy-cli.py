@@ -1054,16 +1054,19 @@ class EventHandler():
                 if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
                     print phrase
                 if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
-                    self.tts.speak(phrase, nospam=20)
+                    self.tts.speak(phrase, nospam=10)
                 # Do the unscoopable star stuff:
                 if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
                     print phrase
                 if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
-                    self.tts.speak(phrase, nospam=20)
+                    self.tts.speak(phrase, nospam=10)
     def AnnounceUnscoopableStar_init(self):
         self.AnnounceScoopableStar_init()
     def AnnounceUnscoopableStar(self, journalentry):
-        self.AnnounceScoopableStar(journalentry)
+        if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') or self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech'):
+            pass
+        else:
+            self.AnnounceScoopableStar(journalentry) # if AnnounceScoopableStar is on, don't call that method a second time
     def ShowEndOfSessionStats(self, journalentry):
         "Print stats at the end of the session"
         session = self.spaceship.sessionstats['appstart']
