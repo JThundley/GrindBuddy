@@ -1017,16 +1017,16 @@ class EventHandler():
             self.target_kills[journalentry['TargetFaction']] = [0, journalentry['KillCount']] # then set up the counter
         elif journalentry['event'] == 'Bounty': # if we just killed someone in a lawful system...
             try:
-                self.target_kills['VictimFaction']][0] += 1
+                self.target_kills[journalentry['VictimFaction']][0] += 1
             except KeyError: # you just killed someone outside of your mission
                 pass
             else: # announce it
-                if self.target_kills['VictimFaction']][0] == self.target_kills['VictimFaction']][1]: # If we've reached the last kill
-                    del self.target_kills['VictimFaction']] # remove this mission that's being tracked
+                if self.target_kills[journalentry['VictimFaction']][0] == self.target_kills[journalentry['VictimFaction']][1]: # If we've reached the last kill
+                    del self.target_kills[journalentry['VictimFaction']] # remove this mission that's being tracked
                     return # and don't announce the last kill, the game will tell you "mission completed" which is enough.
-                phrase = "That was kill number %s" % self.target_kills['VictimFaction']][0]
+                phrase = "That was kill number %s" % self.target_kills[journalentry['VictimFaction']][0]
                 if self.config.getboolean('Count Target Kills', 'total', 'True'):
-                    phrase = "%s out of %s" % (phrase, self.target_kills['VictimFaction']][1])
+                    phrase = "%s out of %s" % (phrase, self.target_kills[journalentry['VictimFaction']][1])
                 if self.isSectionSpeechTextOn('Count Target Kills', 'text'):
                     print phrase
                 if self.isSectionSpeechTextOn('Count Target Kills', 'speech'):
@@ -1053,12 +1053,12 @@ class EventHandler():
             if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
                 print phrase
             if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
-                self.tts.speak(phrase)
+                self.tts.speak(phrase, nospam=20)
             # Do the unscoopable star stuff:
             if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
                 print phrase
             if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
-                self.tts.speak(phrase)
+                self.tts.speak(phrase, nospam=20)
     def AnnounceUnscoopableStar_init(self):
         self.AnnounceScoopableStar_init()
     def AnnounceUnscoopableStar(self, journalentry):
