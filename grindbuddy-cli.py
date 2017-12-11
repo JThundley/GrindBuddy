@@ -1044,7 +1044,7 @@ class EventHandler():
         try: # Try recording the type of star if this was a StartJump event
             self.star_class = journalentry['StarClass']
         except KeyError: # this was the FSDJump event, so do the actual announcing.
-            if journalentry['JumpType'] == 'Hyperspace':
+            if journalentry.get('JumpType') == 'Hyperspace':
                 if self.star_class in self.scoopable_star_types:
                     midphrase = ''
                 else:
