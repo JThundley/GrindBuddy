@@ -464,7 +464,10 @@ class Missions(dict):
             except KeyError: # Donation missions do not have destinations
                 m['StarSystem'] = m['StationName'] = 'None'
             else:
-                m['StationName'] = m['DestinationStation']
+                try:
+                    m['StationName'] = m['DestinationStation']
+                except KeyError: # sometimes a mission will have a DestinationSystem, but no DestinationStation
+                    m['StationName'] = 'None'
             d.addPlace(m)
         return d.getMostVisited()
     def getSortedRewards(self):
@@ -481,7 +484,10 @@ class Missions(dict):
         "return a list of your missions sorted by soonest expiring mission: [(datetime(time), missionid), ...]"
         openbob = []
         for m in self:
-            openbob.append((datetime.datetime.strptime(self[m]['Expiry'], "%Y-%m-%dT%H:%M:%SZ"), m))
+            try:
+                openbob.append((datetime.datetime.strptime(self[m]['Expiry'], "%Y-%m-%dT%H:%M:%SZ"), m))
+            except KeyError: # in some rare circumstances, missions don't have an expiry: {u'TargetType': u'$MissionUtil_FactionTag_Politician;', u'Name': u'Mission_Assassinate_Illegal_Lockdown', u'DestinationStation': u'Lopez de Haro Colony', u'Faction': u'Dragons of LP 726-6', u'MissionID': 225777778, u'timestamp': u'2017-10-13T04:46:10Z', u'Influence': u'Med', u'TargetFaction': u'Liberals of NLTT 19808', u'LocalisedName': u'Take out Politician: Noel T Bilson', u'Reputation': u'Low', u'DestinationSystem': u'NLTT 19808', u'Reward': 584868, u'TargetType_Localised': u'Politician', u'event': u'MissionAccepted', u'Target': u'Noel T Bilson'}
+                openbob.append((datetime.datetime.now() + datetime.timedelta(days=365), m)) # set the expiration date to this mission to about 1 year from now so it appears to be one of the last to expire
         openbob.sort()
         return openbob
 
@@ -624,7 +630,7 @@ class SpaceShip():
             self.sessionstats[name] = SessionStat(name)
         self.sessionstats['oldest'].startRecording() # Turn on the longest-running stats
         #if DEBUG:
-        #    self.sessionlines = [] # used for debuggin money_gained_unknown
+        #    self.sessionlines = [] # used for debugging money_gained_unknown
     def parseJournal(self, startup=False):
         """
         This method parses the journal up until self.timestamp is found.
@@ -633,6 +639,7 @@ class SpaceShip():
         return a list of event dicts ordered from oldest to newest. This method also updates self.timestamp. NoLogsFound exception is raised if no log files were found.
         """
         if self.journaldir.lower().endswith('.zip'):
+            import zipfile
             # just assume that it's actually zip at this point since it was already checked in main
             self.journaldir = zipfile.ZipFile(self.journaldir)
             filelist = sorted(self.journaldir.namelist())
@@ -682,7 +689,7 @@ class SpaceShip():
                         try:
                             journalentry = loads( line )
                         except ValueError, e: # sometimes this error happens because the log file is read while the game is in the middle of writing it. We should ignore those errors and continue
-                            if not e[0].startswith('Expecting'):
+                            if not e[0].startswith('Expecting') or not e[0].startswith('No JSON object'):
                                 raise
                             raise StopIteration
                         if self.timestamp >= journalentry['timestamp']: # if we've caught up to the current timestamp...
@@ -1623,7 +1630,6 @@ if __name__ == '__main__':
     else:
         # check if the logdir is a zip and handle that:
         if logdir.lower().endswith('.zip'):
-            import zipfile
             if not zipfile.is_zipfile(logdir):
                 print "The zip file specified is not actually a zipfile!"
                 sys.exit(3)
