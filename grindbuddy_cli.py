@@ -4,6 +4,7 @@
 ###################### DOCUMENTATION #############################
 #
 ###BUGS:
+# Announcing target kills announces a kill when the game expects you to be killing guys in a conflict zone. I'm not sure if there's actually a difference in the logs.
 
 ######################## IMPORTS ####################
 import spaceship
@@ -12,8 +13,6 @@ from time import sleep
 from threading import Thread, Lock
 ##################### GLOBALS #######################
 DEBUG = True
-if DEBUG:
-    from pprint import pprint
 
 ##################### FUNCTIONS #####################
 # Generators:
@@ -1059,24 +1058,27 @@ class EventHandler():
         So what we'll do is remember the StarClass from the StartJump event and then when we actually make the jump a FSDJump event is generated. This will be our queue to announce.
         All this code is shared by Announce Unscoopable Star
         """
-        try: # Try recording the type of star if this was a StartJump event. Startjump can indicate a hyperspace jump or entry to supercruise.
+        if DEBUG:
+            print journalentry
+        try: # Try recording the type of star if this was a StartJump event. Startjump can indicate a hyperspace jump or entry to supercruise, but StartJump is the only event that has a StarClass attribute.
             self.star_class = journalentry['StarClass']
-        except KeyError: # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump. FSDJump never has a StarClass attribute, so it's safe to assume here.
-            if self.star_class in self.scoopable_star_types:
-                midphrase = ''
-            else:
-                midphrase = 'not '
-            phrase = "This star is %sscoopable." % midphrase
-            # Do the scoopable star stuff:
-            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
-                print phrase
-            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
-                self.tts.speak(phrase, nospam=10)
-            # Do the unscoopable star stuff:
-            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
-                print phrase
-            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
-                self.tts.speak(phrase, nospam=10)
+        except KeyError:
+            if journalentry['event'] == 'FSSDJump': # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump.
+                if self.star_class in self.scoopable_star_types:
+                    midphrase = ''
+                else:
+                    midphrase = 'not '
+                phrase = "This star is %sscoopable." % midphrase
+                # Do the scoopable star stuff:
+                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
+                    print phrase
+                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
+                    self.tts.speak(phrase, nospam=10)
+                # Do the unscoopable star stuff:
+                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
+                    print phrase
+                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
+                    self.tts.speak(phrase, nospam=10)
     def AnnounceUnscoopableStar_init(self):
         self.AnnounceScoopableStar_init()
     def AnnounceUnscoopableStar(self, journalentry):
