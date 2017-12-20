@@ -1058,8 +1058,6 @@ class EventHandler():
         So what we'll do is remember the StarClass from the StartJump event and then when we actually make the jump a FSDJump event is generated. This will be our queue to announce.
         All this code is shared by Announce Unscoopable Star
         """
-        if DEBUG:
-            print journalentry
         try: # Try recording the type of star if this was a StartJump event. Startjump can indicate a hyperspace jump or entry to supercruise, but StartJump is the only event that has a StarClass attribute.
             self.star_class = journalentry['StarClass']
         except KeyError:
