@@ -24,7 +24,7 @@ import os, datetime
 from json import loads
 
 ##################### GLOBALS #######################
-DEBUG = False
+DEBUG = True
 # The indices in these ranks below correspond to how the logs describe ranks. For example, a combat rank of 0 is Harmless,
 COMBATRANKS = ['Harmless', 'Mostly Harmless', 'Novice', 'Competent', 'Expert', 'Master', 'Dangerous', 'Deadly', 'Elite']
 EXPLORERANKS = ['Penniless', 'Mostly Pennliess', 'Peddler', 'Dealer', 'Merchant', 'Broker', 'Entrepreneur', 'Tycoon', 'Elite']
@@ -553,23 +553,19 @@ class DestinationTracker():
         "Count the total number of places visited, return an int"
         return len(self.history)
 
-class RefineryTracker():
-    "This object tracks which types of precious minerals you've refined from mining and how much of each you've mined."
-    def __init__(self):
-        self.mined = {} # a dict of {'ElementName':int(amount), ...}
-    def __len__(self): # TODO: change this whole object to a dict subclass? this __len__ seems stupid and hacky
-        return len(self.mined)
+class RefineryTracker(dict):
+    "This object tracks which types of precious minerals you've refined from mining and how much of each you've mined. It's a  dict of {'ElementName':int(amount), ...}"
     def addElement(self, name):
         "add a single mined element. name is the name of the element."
         try:
-            self.mined[name.lower()] += 1
+            self[name.lower()] += 1
         except KeyError:
-            self.mined[name.lower()] = 1
+            self[name.lower()] = 1
     def getMostMined(self):
         """"return an ordered list of the most mined elements in order from most mined to least mined.
         The list contains tuples of [(int(amountmined), 'ElementName'), ...]
         """
-        ordered = [(y, x) for x, y in self.mined.items()]
+        ordered = [(y, x) for x, y in self.items()]
         try:
             ordered[0][0]
         except IndexError: # self.mined is empty
@@ -577,7 +573,7 @@ class RefineryTracker():
         return sorted(ordered, reverse=True)
     def getTotalMined(self):
         "return the total amount of all things mined."
-        return sum(self.mined.viewvalues())
+        return sum(self.viewvalues())
 
 class SpaceShip():
     """
@@ -689,8 +685,10 @@ class SpaceShip():
                         try:
                             journalentry = loads( line )
                         except ValueError, e: # sometimes this error happens because the log file is read while the game is in the middle of writing it. We should ignore those errors and continue
-                            if not e[0].startswith('Expecting') or not e[0].startswith('No JSON object'):
-                                raise
+                            #if not e[0].startswith('Expecting') or not e[0].startswith('No JSON object') or not e[0].startswith('Expecting'):
+                            #    if DEBUG:
+                            #        print 'e[0] is:', e[0]
+                            #    raise
                             raise StopIteration
                         if self.timestamp >= journalentry['timestamp']: # if we've caught up to the current timestamp...
                             raise StopIteration
