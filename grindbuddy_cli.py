@@ -1034,17 +1034,21 @@ class EventHandler():
                 pass
             else: # announce it
                 if self.target_kills[journalentry['VictimFaction']][0] == self.target_kills[journalentry['VictimFaction']][1]: # If we've reached the last kill
+                    phrase = "Mission Completed. Killed %s %s." % (self.target_kills[journalentry['VictimFaction']][1], journalentry['VictimFaction'])
+                    delay = 4
                     del self.target_kills[journalentry['VictimFaction']] # remove this mission that's being tracked
-                    return # and don't announce the last kill, the game will tell you "mission completed" which is enough.
-                phrase = "That was kill number %s" % self.target_kills[journalentry['VictimFaction']][0]
-                if self.config.getboolean('Count Target Kills', 'total', 'True'):
-                    phrase = "%s out of %s." % (phrase, self.target_kills[journalentry['VictimFaction']][1])
-                else:
-                    phrase += '.'
+                else: # we got one of our kills
+                    delay = 3
+                    phrase = "That was kill number %s" % self.target_kills[journalentry['VictimFaction']][0]
+                    if self.config.getboolean('Count Target Kills', 'total', 'True'):
+                        phrase = "%s out of %s." % (phrase, self.target_kills[journalentry['VictimFaction']][1])
+                    else:
+                        phrase += '.'
+                # print and speak the phrase:
                 if self.isSectionSpeechTextOn('Count Target Kills', 'text'):
                     print phrase
                 if self.isSectionSpeechTextOn('Count Target Kills', 'speech'):
-                    self.tts.speak(phrase) # no nospam here because it's possible to have 2 massacre missions going at the same time, at the same amount of progress, and to kill both ships at once. I want to hear it twice in that case.
+                    self.tts.speak(phrase, delay=delay) # no nospam here because it's possible to have 2 massacre missions going at the same time, at the same amount of progress, and to kill both ships at once. I want to hear it twice in that case.
     def AnnounceScoopableStar_init(self):
         self.scoopable_star_types = 'KGBFOAM'
     def AnnounceScoopableStar(self, journalentry):
@@ -1055,25 +1059,24 @@ class EventHandler():
         So what we'll do is remember the StarClass from the StartJump event and then when we actually make the jump a FSDJump event is generated. This will be our queue to announce.
         All this code is shared by Announce Unscoopable Star
         """
-        try: # Try recording the type of star if this was a StartJump event
+        try: # Try recording the type of star if this was a StartJump event. Startjump can indicate a hyperspace jump or entry to supercruise.
             self.star_class = journalentry['StarClass']
-        except KeyError: # this was the FSDJump event, so do the actual announcing.
-            if journalentry.get('JumpType') == 'Hyperspace':
-                if self.star_class in self.scoopable_star_types:
-                    midphrase = ''
-                else:
-                    midphrase = 'not '
-                phrase = "This star is %sscoopable." % midphrase
-                # Do the scoopable star stuff:
-                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
-                    print phrase
-                if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
-                    self.tts.speak(phrase, nospam=10)
-                # Do the unscoopable star stuff:
-                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
-                    print phrase
-                if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
-                    self.tts.speak(phrase, nospam=10)
+        except KeyError: # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump. FSDJump never has a StarClass attribute, so it's safe to assume here.
+            if self.star_class in self.scoopable_star_types:
+                midphrase = ''
+            else:
+                midphrase = 'not '
+            phrase = "This star is %sscoopable." % midphrase
+            # Do the scoopable star stuff:
+            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
+                print phrase
+            if self.isSectionSpeechTextOn('Announce Scoopable Star', 'speech') and not midphrase:
+                self.tts.speak(phrase, nospam=10)
+            # Do the unscoopable star stuff:
+            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'text') and midphrase:
+                print phrase
+            if self.isSectionSpeechTextOn('Announce Unscoopable Star', 'speech') and midphrase:
+                self.tts.speak(phrase, nospam=10)
     def AnnounceUnscoopableStar_init(self):
         self.AnnounceScoopableStar_init()
     def AnnounceUnscoopableStar(self, journalentry):
