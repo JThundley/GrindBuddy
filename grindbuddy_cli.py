@@ -972,13 +972,17 @@ class EventHandler():
         self.money_gained_milestone_announceamount = self.config.getintlist('Money Gained Milestone', 'announce every') # Read the config once, don't build it over and over again
     def MoneyGainedMilestone(self, journalentry):
         "Announce when you've gained certain amounts of money"
+        announced = False
         for announceamount in self.money_gained_milestone_announceamount:
             # if your current amount of money is now more divisible than your total money by announceamount when you first ran this script...
             if self.money_gained_milestone_oldmoney / announceamount < self.spaceship.sessionstats['oldest'].getTotalMoneyGained() / announceamount:
+                announced = True
                 if self.isSectionSpeechTextOn('MoneyGainedMilestone', 'text'):
                     print "Congratulations on making another %s credits!" % format(announceamount, ',')
                 if self.isSectionSpeechTextOn('MoneyGainedMilestone', 'speech'):
                     self.tts.speak("Congratulations on making another %s credits!" % format(announceamount, ','), nospam=10)
+        if announced: # record your current money so we don't announce the same thing again
+            self.money_gained_milestone_oldmoney = self.spaceship.sessionstats['oldest'].getTotalMoneyGained()
         self.money_gained_milestone_oldmoney = self.spaceship.sessionstats['oldest'].getTotalMoneyGained() # update your amount of money so it doesn't repeat the same announcement
     def AnnouncePhysicalMaterialsFull(self, journalentry):
         "Announce when you've filled up your physical materials."
@@ -1061,7 +1065,7 @@ class EventHandler():
         try: # Try recording the type of star if this was a StartJump event. Startjump can indicate a hyperspace jump or entry to supercruise, but StartJump is the only event that has a StarClass attribute.
             self.star_class = journalentry['StarClass']
         except KeyError:
-            if journalentry['event'] == 'FSSDJump': # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump.
+            if journalentry['event'] == 'FSDJump': # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump.
                 if self.star_class in self.scoopable_star_types:
                     midphrase = ''
                 else:
