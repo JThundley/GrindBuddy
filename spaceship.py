@@ -635,7 +635,6 @@ class SpaceShip():
         return a list of event dicts ordered from oldest to newest. This method also updates self.timestamp. NoLogsFound exception is raised if no log files were found.
         """
         if self.journaldir.lower().endswith('.zip'):
-            import zipfile
             # just assume that it's actually zip at this point since it was already checked in main
             self.journaldir = zipfile.ZipFile(self.journaldir)
             filelist = sorted(self.journaldir.namelist())
@@ -1628,6 +1627,7 @@ if __name__ == '__main__':
     else:
         # check if the logdir is a zip and handle that:
         if logdir.lower().endswith('.zip'):
+            import zipfile
             if not zipfile.is_zipfile(logdir):
                 print "The zip file specified is not actually a zipfile!"
                 sys.exit(3)
