@@ -1066,10 +1066,13 @@ class EventHandler():
             self.star_class = journalentry['StarClass']
         except KeyError:
             if journalentry['event'] == 'FSDJump': # this was the FSDJump event, so do the actual announcing. This method is only triggered by StartJump and FSDJump.
-                if self.star_class in self.scoopable_star_types:
-                    midphrase = ''
-                else:
-                    midphrase = 'not '
+                try:
+                    if self.star_class in self.scoopable_star_types:
+                        midphrase = ''
+                    else:
+                        midphrase = 'not '
+                except AttributeError: # star_class wasn't created because the script was launched in the middle of the jump process
+                    return # do nothing
                 phrase = "This star is %sscoopable." % midphrase
                 # Do the scoopable star stuff:
                 if self.isSectionSpeechTextOn('Announce Scoopable Star', 'text') and not midphrase:
