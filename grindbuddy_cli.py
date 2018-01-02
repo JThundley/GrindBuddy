@@ -272,7 +272,7 @@ def createConfig(configfile=None):
     config.set("Show End Of Session Stats", "# The amount of fuel you've scooped.")
     config.set("Show End Of Session Stats", "Fuel Scooped", "auto")
     config.set("Show End Of Session Stats", "# How many times you've loaded a game from the menu.")
-    config.set("Show End Of Session Stats", "Games Loaded", "True") # this is always at least 1
+    config.set("Show End Of Session Stats", "Games Loaded", "auto")
     config.set("Show End Of Session Stats", "# The total amount of cargo you've gained from any method.")
     config.set("Show End Of Session Stats", "Total Cargo Gained", "auto") # getTotalCargoGained
     config.set("Show End Of Session Stats", "# The total amount of cargo you've sold to both regular and black markets.")
@@ -1174,7 +1174,7 @@ class EventHandler():
                 print ''.join(textlist) # so much fucking simpler, look at this same code in spaceship.py, what a clusterfuck
 
         # Now we print the individual statistics. This all has to be formatted properly, so we'll add it all to a list and pass it to printAlignedText()
-        def mkScorePerHour(configname, attributename):
+        def mkScorePerHour(configname, attributename): # XXX TODO: keep working on this:
             """Create a textlist item of stats that have per hour. This
             configname is the name of the variable from the config, str()
             attributename is a string, the name of the attribute we are reading or method we are executing of this session
@@ -1182,9 +1182,16 @@ class EventHandler():
             """
             textlist = []
             if self.config.getbooleanauto('Show End Of Session Stats', configname, getattr(session, attributename), 'True'):
-                textlist.append((configname, format(getattr(session, attributename)(), ',')))
+                if ('Without' in attributename) and (session.getScorePerHour(attributename) == session.getScorePerHour(attributename.split('Without')[0])):  # if we're printing one of the withouts and the amount is the same...
+                    textlist.append((configname, 'No difference'))  # just say same so we don't have number overload
+                else:
+                    textlist.append((configname, format(getattr(session, attributename)(), ',')))
             if self.config.getbooleanauto('Show End Of Session Stats', '%s Per Hour' % configname, getattr(session, attributename), 'True'):
-                textlist.append(('', '%s per hour' % format(session.getScorePerHour(attributename), ',')))
+                if ('Without' in attributename) and (session.getScorePerHour(attributename) == session.getScorePerHour(attributename.split('Without')[0])): # if we're printing one of the withouts and the amount is the same...
+                    #textlist.append(('', 'No difference')) # just say same so we don't have number overload
+                    pass # don't print a score per hour if this without stat is the same as the full stat.
+                else: # if we bought ships or modules, print the difference:
+                    textlist.append(('', '%s per hour' % format(session.getScorePerHour(attributename), ',')))
             return textlist
 
         textlist = []
@@ -1196,6 +1203,8 @@ class EventHandler():
                      ('Total Money Spent Without Modules Or Ships', 'getTotalMoneySpentWithoutModulesOrShips'),
                      ):
             textlist.extend(mkScorePerHour(*pair))
+        printAlignedText(textlist) # print this out in it's own little alignment area since it's so long.
+        textlist = []
         # Now print out all the other individual stats:
         for configname in ('Total Money Gained From Commodities Sold', 'Bankruptcy Declared', 'Cargo Delivered', 'Cargo Delivered Engineer', 'Cargo Delivered Powerplay', 'Cargo Ejected', 'Cargo Gained Bought Commodity', 'Cargo Gained Haulage',
                            'Cargo Gained Mission Reward', 'Cargo Gained Powerplay', 'Cargo Gained Scooped', 'Cargo Lost Death', 'Cargo Sold', 'Cargo Sold Drones', 'Cargo Sold Illegal', 'Cargo Sold Search And Rescue', 'Cleared Saves',
