@@ -1472,7 +1472,10 @@ class SpaceShip():
         self._SpaceShip__addSessionStat(journalentry, 'reboot_repairs')
     def __handleEvent_ReceiveText(self, journalentry):
         # { "timestamp":"2017-08-31T04:30:04Z", "event":"ReceiveText", "From":"Bode Hub", "Message":"$STATION_NoFireZone_exited;", "Message_Localised":"No fire zone left.", "Channel":"npc" }
-        self._SpaceShip__addSessionStat(journalentry, 'messages_received_%s' % journalentry['Channel'].lower())
+        try:
+            self._SpaceShip__addSessionStat(journalentry, 'messages_received_%s' % journalentry['Channel'].lower())
+        except KeyError: # raised because when another player messages you, there is no Channel key
+            self._SpaceShip__addSessionStat(journalentry, 'messages_received_player')
     def __handleEvent_RedeemVoucher(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"RedeemVoucher", "Type":"bounty", "Amount":1000 }
         # { "timestamp":"2017-09-08T05:02:09Z", "event":"RedeemVoucher", "Type":"bounty", "Amount":18060, "Factions":[ { "Faction":"Democrats of LTT 15574", "Amount":9030 }, { "Faction":"Federation", "Amount":9030 } ] }
