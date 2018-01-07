@@ -243,6 +243,8 @@ def createConfig(configfile=None):
     config.set("Show End Of Session Stats", "Docking Undocked", "auto")
     config.set("Show End Of Session Stats", "# How much money in bounties you've given to an engineer.")
     config.set("Show End Of Session Stats", "Engineer Bounty Spent", "auto")
+    config.set("Show End Of Session Stats", "# How much money in combat bonds you've given to an engineer.")
+    config.set("Show End Of Session Stats", "Engineer Bond Spent", "auto")
     config.set("Show End Of Session Stats", "# How many different modifications you've applied from engineers.")
     config.set("Show End Of Session Stats", "Engineer Modifications Applied", "auto")
     config.set("Show End Of Session Stats", "# How many Engineers you've been invited to visit.")
@@ -1210,8 +1212,8 @@ class EventHandler():
                            'Cargo Gained Mission Reward', 'Cargo Gained Powerplay', 'Cargo Gained Scooped', 'Cargo Lost Death', 'Cargo Sold', 'Cargo Sold Drones', 'Cargo Sold Illegal', 'Cargo Sold Search And Rescue', 'Cleared Saves',
                            'Cockpit Breaches', 'Community Goals Completed', 'Community Goals Discarded', 'Community Goals Joined', 'Community Goals Scientific Research', 'Crew Ended', 'Crew Ended Crime', 'Crew Fired', 'Crew Hired',
                            'Crew Kicked', 'Crew Kicked Crime', 'Crew Quit', 'Crews Joined', 'Deaths', 'Docking Cancelled', 'Docking Denied', 'Docking Granted', 'Docking Requested', 'Docking Timeout', 'Docking Undocked', 'Engineer Bounty Spent',
-                           'Engineer Modifications Applied', 'Engineers Invited', 'Engineers Known', 'Engineers Rank Gained', 'Engineers Unlocked', 'Fighter Docked', 'Fighter Launched Npc', 'Fighter Launched Player', 'Fines Gained',
-                           'Fines Legacy Paid', 'Fsd Jump Started', 'Fuel Bought', 'Fuel Scoop Started', 'Fuel Scooped', 'Games Loaded', 'Total Cargo Gained', 'Total Cargo Sold', 'Total Galactic Average Sales', 'Heat Damage Taken',
+                           'Engineer Bond Spent', 'Engineer Modifications Applied', 'Engineers Invited', 'Engineers Known', 'Engineers Rank Gained', 'Engineers Unlocked', 'Fighter Docked', 'Fighter Launched Npc', 'Fighter Launched Player',
+                           'Fines Gained', 'Fines Legacy Paid', 'Fsd Jump Started', 'Fuel Bought', 'Fuel Scoop Started', 'Fuel Scooped', 'Games Loaded', 'Total Cargo Gained', 'Total Cargo Sold', 'Total Galactic Average Sales', 'Heat Damage Taken',
                            'Heat Warnings', 'Hull Damage Taken Fifths Fuzzy', 'Interdictions Committed Fail Npc', 'Interdictions Committed Fail Player', 'Interdictions Committed Success Npc', 'Interdictions Committed Success Player',
                            'Interdictions Escaped Npc', 'Interdictions Escaped Player', 'Interdictions Escapes Failed Npc', 'Interdictions Escapes Failed Player', 'Interdictions Submitted Npc', 'Interdictions Submitted Player', 'Kills Bounty',
                            'Kills Capitalship', 'Kills Faction Bond', 'Kills Pvp', 'Materials Data Discarded', 'Materials Data Gained', 'Materials Data Spent Engineer', 'Materials Discovered', 'Materials Physical Discarded',

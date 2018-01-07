@@ -301,6 +301,7 @@ class SessionStat():
         self.engineers_known = 0 # how many engineers you know about
         self.engineers_rank_gained = 0 # How many times you've ranked all engineers to a new level
         self.engineer_bounty_spent = 0 # how many bounties you've given to engineers to unlock them
+        self.engineer_bond_spent = 0 # how much money in combat bonds you've given to engineers to unlock them
         ### RANK
         self.rank_gained_combat = 0
         self.rank_gained_trade = 0
@@ -1067,6 +1068,8 @@ class SpaceShip():
             self._SpaceShip__loseCargo(journalentry, journalentry['Commodity'], journalentry['Quantity'], 'delivered_engineer')
         elif journalentry['Type'] == 'Bounty':
             self._SpaceShip__addSessionStat(journalentry, 'engineer_bounty_spent', journalentry['Quantity'])
+        elif journalentry['Type'] == 'Bond':
+            self._SpaceShip__addSessionStat(journalentry, 'engineer_bond_spent', journalentry['Quantity'])
         else:
             raise Exception('Unknown EngineerContribution Type: %s.' % journalentry['Type'])
     def __handleEvent_EngineerCraft(self, journalentry):
@@ -1089,8 +1092,9 @@ class SpaceShip():
                         type = 'Encoded'
                     self._SpaceShip__changeMaterial(journalentry, type, ingredient, -ingredients[ingredient], 'engineer')
                     break
-            else:
-                raise Exception("Unknown material used in engineering: %s" % ingredient)
+            #else:
+                # I guess spending shit you don't have does happen... TODO: investigate this shit more, the last Materials event says that I have disruptedwakeechoes
+                #raise Exception("Material used in engineering that you didn't have: %s.\njournalentry: %s\nmaterials: %s\ndatamaterials: %s" % (ingredient, journalentry, self.materials, self.datamaterials))
     def __handleEvent_EngineerProgress(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"EngineerProgress", "Progress":"Unlocked", "Engineer":"Elvira Martuuk" }
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"EngineerProgress", "Engineer":"Elvira Martuuk", "Rank":2 }
