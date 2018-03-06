@@ -660,6 +660,8 @@ class SpaceShip():
                     currentfile = filelist.pop()
                 except IndexError: # No more log files to parse
                     raise StopIteration
+                if currentfile.endswith('json'): # New logs introduced by 3.0
+                    continue # skip them
                 lineno = 0
                 if startup:
                     if is_zip:
@@ -900,6 +902,10 @@ class SpaceShip():
                 self._SpaceShip__addSessionStat(journalentry, 'rank_gained_%s' % k.lower())
     ############## event handler methods ######################
     # All of these methods accept a single journalentry dict, update the SpaceShip object's variables and returns nothing. Many of them don't actually do anything but are still here so they can be easily expanded upon.
+    def __handleEvent_ApproachBody(self, journalentry):
+        # {u'Body': u'Laksak A 1', u'StarSystem': u'Laksak', u'timestamp': u'2018-03-02T06:24:08Z', u'BodyID': 5, u'SystemAddress': 4305444669811L, u'event': u'ApproachBody'}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_ApproachSettlement(self, journalentry):
         # { "timestamp":"2017-08-31T04:58:48Z", "event":"ApproachSettlement", "Name":"Morgan Depot" }
         pass
@@ -952,10 +958,17 @@ class SpaceShip():
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"CollectCargo", "Type":"agriculturalmedicines", "Stolen":false }
         # There is no amount in this entry because it's always 1, you can only scoop one thing at a time
         self._SpaceShip__gainCargo(journalentry, journalentry['Type'], 1, 'scooped', stolen=journalentry['Stolen'])
+    def __handleEvent_Commander(self, journalentry):
+        # {u'timestamp': u'2018-02-28T06:05:12Z', u'event': u'Commander', u'Name': u'BlownUterus'}
+        # New to 3.0
+        pass # TODO
     def __handleEvent_CommitCrime(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"CommitCrime", "CrimeType":"assault", "Faction":"The Pilots Federation", "Victim":"Potapinski", "Bounty":210 }
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"CommitCrime", "CrimeType":"fireInNoFireZone", "Faction":"Jarildekald Public Industry", "Fine":100 }
         self._SpaceShip__addSessionStat(journalentry, 'crimes_committed')
+    def __handleEvent_CommunityGoal(self, journalentry):
+        # {u'timestamp': u'2018-02-16T06:15:11Z', u'event': u'CommunityGoal', u'CurrentGoals': [{u'PlayerPercentileBand': 100, u'CurrentTotal': 1426246668, u'Title': u'Protecting Traders in Momoirent', u'Bonus': 100000, u'CGID': 468, u'Expiry': u'2018-02-22T15:00:00Z', u'TierReached': u'Tier 1', u'PlayerInTopRank': False, u'MarketName': u'Jahn Dock', u'SystemName': u'Momoirent', u'NumContributors': 1615, u'PlayerContribution': 0, u'IsComplete': False, u'TopRankSize': 10}]}
+        pass # TODO
     def __handleEvent_CommunityGoalDiscard(self, journalentry):
         # No example given, I think it's { "timestamp":"2016-06-10T14:32:03Z", "event":"CommunityGoalDiscard", "Name":"Goalname", "System":"systemname" }
         self._SpaceShip__addSessionStat(journalentry, 'community_goals_discarded')
@@ -1070,6 +1083,9 @@ class SpaceShip():
             self._SpaceShip__addSessionStat(journalentry, 'engineer_bounty_spent', journalentry['Quantity'])
         elif journalentry['Type'] == 'Bond':
             self._SpaceShip__addSessionStat(journalentry, 'engineer_bond_spent', journalentry['Quantity'])
+        elif journalentry['Type'] == 'Materials':
+            # TODO!!!!
+            pass
         else:
             raise Exception('Unknown EngineerContribution Type: %s.' % journalentry['Type'])
     def __handleEvent_EngineerCraft(self, journalentry):
@@ -1183,6 +1199,10 @@ class SpaceShip():
     def __handleEvent_LaunchSRV(self, journalentry):
         # { "timestamp":"2017-08-31T04:52:44Z", "event":"LaunchSRV", "Loadout":"starter", "PlayerControlled":true }
         self._SpaceShip__addSessionStat(journalentry, 'srv_launched_%s' % playerOrNpc(journalentry))
+    def __handleEvent_LeaveBody(self, journalentry):
+        # {u'Body': u'Laksak A 1', u'StarSystem': u'Laksak', u'timestamp': u'2018-03-02T06:40:08Z', u'BodyID': 5, u'SystemAddress': 4305444669811L, u'event': u'LeaveBody'}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_Liftoff(self, journalentry):
         # { "timestamp":"2017-08-31T04:54:34Z", "event":"Liftoff", "PlayerControlled":true, "Latitude":-4.009589, "Longitude":153.113800 }
         # when taking off from planet surface
@@ -1230,6 +1250,10 @@ class SpaceShip():
         # I don't think this should be counted as a visited destination
         if journalentry['Docked']:
             self.ignore_next_docked = True
+    def __handleEvent_Market(self, journalentry):
+        # {u'StarSystem': u'Tau Ceti', u'timestamp': u'2018-02-28T06:38:58Z', u'event': u'Market', u'StationName': u'Graham Terminal', u'MarketID': 128126968}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_MarketBuy(self, journalentry):
         "This event is always for a single item type."
         # {"timestamp": "2016-06-10T14:32:03Z", "event": "MarketBuy", "Type": "foodcartridges", "Count": 10, "BuyPrice": 39, "TotalCost": 390}
@@ -1350,6 +1374,10 @@ class SpaceShip():
             for k in ('DestinationSystem', 'DestinationStation'):
                 self.missions[journalentry['MissionID']][k] = journalentry[''.join(('New', k))]
             self._SpaceShip__addSessionStat(journalentry, 'missions_redirected')
+    def __handleEvent_Missions(self, journalentry):
+        # {u'Active': [], u'timestamp': u'2018-02-28T06:05:18Z', u'Complete': [], u'event': u'Missions', u'Failed': []}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_ModuleBuy(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"ModuleBuy", "Slot":"MediumHardpoint2", "SellItem":"hpt_pulselaser_fixed_medium", "SellPrice":0, "BuyItem":"hpt_multicannon_gimbal_medium", "BuyPrice":50018, "Ship":"cobramkiii","ShipID":1 }
         # {u'Slot': u'Slot04_Size5', u'ShipID': 7, u'BuyPrice': 777600, u'timestamp': u'2017-10-06T03:55:59Z', u'BuyItem': u'$int_dronecontrol_prospector_size5_class5_name;', u'Ship': u'python', u'BuyItem_Localised': u'Prospector', u'event': u'ModuleBuy'}
@@ -1364,6 +1392,11 @@ class SpaceShip():
         else:
             self._SpaceShip__gainMoney(journalentry, 'sellmodules', journalentry['SellPrice'])
             self._SpaceShip__addSessionStat(journalentry, 'modules_sold')
+
+    def __handleEvent_ModuleInfo(self, journalentry):
+        # {u'timestamp': u'2018-02-28T06:17:45Z', u'event': u'ModuleInfo'}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_ModuleRetrieve(self, journalentry):
         # { "timestamp":"2017-09-06T04:34:14Z", "event":"ModuleRetrieve", "Slot":"TinyHardpoint4", "RetrievedItem":"$hpt_shieldbooster_size0_class5_name;", "RetrievedItem_Localised":"Shield Booster", "Ship":"python", "ShipID":7, "EngineerModifications":"ShieldBooster_HeavyDuty" }
         # { "timestamp":"2017-09-03T04:28:47Z", "event":"ModuleRetrieve", "Slot":"Slot04_Size3", "RetrievedItem":"$int_fuelscoop_size3_class5_name;", "RetrievedItem_Localised":"Fuel Scoop", "Ship":"asp", "ShipID":2, "SwapOutItem":"$int_cargorack_size3_class1_name;", "SwapOutItem_Localised":"Cargo Rack", "Cost":0 }
@@ -1499,6 +1532,13 @@ class SpaceShip():
     def __handleEvent_RepairAll(self, journalentry):
         # { "timestamp":"2017-09-08T05:48:04Z", "event":"RepairAll", "Cost":1172 }
         self.__handleEvent_Repair(journalentry)
+    def __handleEvent_RepairDrone(self, journalentry):
+        # { "timestamp":"2018-01-28T07:17:32Z", "event":"RepairDrone" }
+        pass # TODO
+    def __handleEvent_Reputation(self, journalentry):
+        # {u'timestamp': u'2018-02-28T06:05:12Z', u'Empire': 74.937599, u'Alliance': 7.04083, u'event': u'Reputation', u'Federation': 95.508598}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_RestockVehicle(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"RestockVehicle", "Type":"SRV", "Loadout":"starter", "Cost":1030, "Count":1 }
         self._SpaceShip__loseMoney(journalentry, 'restockvehicle', journalentry['Cost'])
@@ -1551,6 +1591,14 @@ class SpaceShip():
             self._SpaceShip__addSessionStat(journalentry, 'shields_regained') # Shields_regained whether from combat or charging them back up after silent running.
         else:
             self._SpaceShip__addSessionStat(journalentry, 'shields_depleted')
+    def __handleEvent_ShipTargeted(self, journalentry):
+        # {u'TargetLocked': True, u'timestamp': u'2018-02-28T06:06:46Z', u'Ship_Localised': u'Asp Scout', u'ScanStage': 0, u'Ship': u'asp_scout', u'event': u'ShipTargeted'}
+        # new to 3.0
+        pass # TODO
+    def __handleEvent_Shipyard(self, journalentry):
+        # {u'StarSystem': u'Tau Ceti', u'timestamp': u'2018-02-28T06:42:23Z', u'event': u'Shipyard', u'StationName': u'Graham Terminal', u'MarketID': 128126968}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_ShipyardBuy(self, journalentry):
         # { "timestamp":"2016-07-21T14:36:38Z", "event":"ShipyardBuy", "ShipType":"hauler", "ShipPrice":46262, "StoreOldShip":"SideWinder", "StoreShipID":2 }
         self._SpaceShip__loseMoney(journalentry, 'buyship', journalentry['ShipPrice'])
@@ -1571,9 +1619,36 @@ class SpaceShip():
         # { "timestamp":"2016-07-21T15:19:49Z", "event":"ShipyardTransfer", "ShipType":"SideWinder", "ShipID":7, "System":"Eranin", "Distance":85.639145, "TransferPrice":580 }
         self._SpaceShip__loseMoney(journalentry, 'transfership', journalentry['TransferPrice'])
         self._SpaceShip__addSessionStat(journalentry, 'ships_transferred')
+    def __handleEvent_Shutdown(self, journalentry):
+        # {u'timestamp': u'2018-02-28T07:01:23Z', u'event': u'Shutdown'}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_StartJump(self, journalentry):
         # { "timestamp":"2017-08-31T04:30:10Z", "event":"StartJump", "JumpType":"Supercruise" }
         self._SpaceShip__addSessionStat(journalentry, 'fsd_jump_started')
+    def __handleEvent_Statistics(self, journalentry):
+        # {u'Passengers': {u'Passengers_Missions_Accepted': 1217, u'Passengers_Missions_Delivered': 12897, u'Passengers_Missions_Disgruntled': 0, u'Passengers_Missions_Bulk': 11780, u'Passengers_Missions_VIP': 1117, u'Passengers_Missions_Ejected': 230}, u'Mining': {u'Materials_Collected': 6673, u'Mining_Profits': 573088, u'Quantity_Mined': 1}, u'Combat': {u'Assassination_Profits': 73123396, u'Combat_Bond_Profits': 22861100, u'Bounties_Claimed': 1412, u'Assassinations': 93, u'Bounty_Hunting_Profit': 56176479, u'Skimmers_Killed': 66, u'Combat_Bonds': 709, u'Highest_Single_Reward': 0}, u'Multicrew': {u'Multicrew_Fines_Total': 0, u'Multicrew_Gunner_Time_Total': 253, u'Multicrew_Credits_Total': 692373, u'Multicrew_Fighter_Time_Total': 2239, u'Multicrew_Time_Total': 15302}, u'CQC': {u'CQC_KD': 1.25, u'CQC_Time_Played': 2700, u'CQC_Credits_Earned': 4136, u'CQC_WL': 0, u'CQC_Kills': 15}, u'timestamp': u'2018-02-28T06:05:19Z', u'Smuggling': {u'Resources_Smuggled':
+        # 106, u'Average_Profit': 4947.6176470588, u'Black_Markets_Traded_With': 13, u'Highest_Single_Transaction': 31296, u'Black_Markets_Profits': 168219}, u'Crafting': {u'Recipes_Generated': 295, u'Count_Of_Used_Engineers': 7,
+        # u'Recipes_Generated_Rank_1': 104, u'Recipes_Generated_Rank_3': 78, u'Recipes_Generated_Rank_2': 65,
+        # u'Recipes_Generated_Rank_5': 38, u'Recipes_Generated_Rank_4': 10}, u'Crime': {u'Total_Bounties': 178475, u'Bounties_Received': 131, u'Notoriety': 0, u'Highest_Bounty': 6000, u'Fines': 125, u'Total_Fines': 804364},
+        # u'Trading': {u'Resources_Traded': 4060, u'Average_Profit': 9823.1912632822, u'Market_Profits': 8320243, u'Highest_Single_Transaction': 94444, u'Markets_Traded_With': 49}, u'Material_Trader_Stats': {u'Trades_Completed': 0, u'Materials_Traded': 0}, u'Exploration': {u'Total_Hyperspace_Jumps': 1307, u'Highest_Payout': 2751104, u'Planets_Scanned_To_Level_2': 46, u'Planets_Scanned_To_Level_3': 486, u'Systems_Visited': 543, u'Exploration_Profits': 45919760, u'Greatest_Distance_From_Start': 454.8910133036, u'Total_Hyperspace_Distance': 18977, u'Time_Played': 1489020}, u'Crew': {}, u'event': u'Statistics', u'Bank_Account': {u'Spent_On_Ammo_Consumables': 306969, u'Spent_On_Outfitting': 1041261183, u'Spent_On_Insurance': 182211574, u'Spent_On_Ships': 312596164, u'Insurance_Claims': 46, u'Spent_On_Fuel': 131124, u'Current_Wealth': 2381154098L, u'Spent_On_Repairs': 18230313}, u'Search_And_Rescue': {u'SearchRescue_Traded': 5, u'SearchRescue_Count': 3, u'SearchRescue_Profit': 3316}}
+        # New to 3.0
+        pass # TODO
+    def __handleEvent_StoredShips(self, journalentry):
+        # {u'StarSystem': u'Tau Ceti', u'timestamp': u'2018-02-28T06:42:23Z', u'MarketID': 128126968, u'ShipsRemote': [{u'StarSystem': u'Rhea', u'ShipMarketID': 3228207616L, u'Hot': False, u'Value': 3292041, u'TransferTime': 1021, u'ShipType_Localised': u'Viper MkIII', u'ShipType': u'Viper', u'TransferPrice': 15912, u'ShipID': 1}, {u'StarSystem': u'Momoirent', u'ShipMarketID': 3228761344L, u'Hot': False, u'Value': 14703347, u'TransferTime': 936, u'ShipType_Localised': u'Asp Explorer',
+        # u'ShipType': u'Asp', u'TransferPrice': 60126, u'ShipID': 2}, {u'StarSystem': u'Upsilon Aquarii', u'Name': u'The chubby pickle', u'ShipMarketID': 3223972864L, u'Hot': False, u'Value': 195632001, u'TransferTime': 961, u'ShipType': u'Python',
+        # u'TransferPrice': 816029, u'ShipID': 7}, {u'StarSystem': u'Upsilon Aquarii', u'Name': u'Murder she boat', u'ShipMarketID': 3223972864L, u'Hot': False, u'Value': 155017401, u'TransferTime': 961, u'ShipType_Localised': u'Fer-de-Lance',
+        # u'ShipType': u'FerDeLance', u'TransferPrice': 646823, u'ShipID': 10}, {u'StarSystem':
+        # u'Wu Guinagi', u'ShipMarketID': 3222070272L, u'Hot': False, u'Value': 3470975, u'TransferTime': 2640, u'ShipType_Localised': u'Diamondback Explorer', u'ShipType': u'DiamondBackXL', u'TransferPrice': 50429, u'ShipID': 12},
+        # {u'StarSystem': u'Sol', u'ShipMarketID': 128016384, u'Hot': False, u'Value': 624183469, u'TransferTime': 419, u'ShipType': u'Anaconda', u'TransferPrice': 572891, u'ShipID': 14},
+        # {u'StarSystem': u'Rhea', u'ShipMarketID': 3228207616L, u'Hot': False, u'Value':
+        # 32000, u'TransferTime': 1021, u'ShipType': u'SideWinder', u'TransferPrice': 1144, u'ShipID': 15}, {u'StarSystem': u'Rhea', u'ShipMarketID': 3228207616L, u'Hot': False, u'Value': 590264, u'TransferTime': 1021, u'ShipType': u'Eagle',
+        # u'TransferPrice': 3673, u'ShipID': 16}, {u'StarSystem': u'LTT 10823', u'ShipMarketID': 3223371520L, u'Hot': False, u'Value': 24624569, u'TransferTime': 1294, u'ShipType_Localised': u'Federal Dropship', u'ShipType': u'Federation_Dropship', u'TransferPrice': 152796, u'ShipID': 18}, {u'StarSystem': u'LTT 10823', u'ShipMarketID':
+        # 3223371520L, u'Hot': False, u'Value': 56901528, u'TransferTime': 1294, u'ShipType_Localised': u'Federal Assault Ship', u'ShipType': u'Federation_Dropship_MkII', u'TransferPrice': 351765, u'ShipID': 19}, {u'StarSystem': u'LTT 10823',
+        # u'ShipMarketID': 3223371520L, u'Hot': False, u'Value': 98068863, u'TransferTime': 1294, u'ShipType_Localised': u'Federal Gunship', u'ShipType': u'Federation_Gunship',
+        # u'TransferPrice': 605539, u'ShipID': 20}], u'StationName': u'Graham Terminal', u'event': u'StoredShips', u'ShipsHere': []}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_SupercruiseEntry(self, journalentry):
         # { "timestamp":"2017-08-31T04:30:15Z", "event":"SupercruiseEntry", "StarSystem":"Wu Guinagi" }
         self._SpaceShip__addSessionStat(journalentry, 'supercruise_entered')
@@ -1592,6 +1667,11 @@ class SpaceShip():
     def __handleEvent_USSDrop(self, journalentry):
         # { "timestamp":"2017-08-31T04:56:56Z", "event":"USSDrop", "USSType":"$USS_Type_Aftermath;", "USSType_Localised":"Combat aftermath detected", "USSThreat":0 }
         self._SpaceShip__addSessionStat(journalentry, 'uss_drops')
+
+    def __handleEvent_UnderAttack(self, journalentry):
+        # {u'timestamp': u'2018-02-28T06:18:08Z', u'event': u'UnderAttack', u'Target': u'You'}
+        # new to 3.0
+        pass # TODO
     def __handleEvent_Undocked(self, journalentry):
         # { "timestamp":"2017-08-31T04:29:47Z", "event":"Undocked", "StationName":"Bode Hub", "StationType":"Outpost" }
         self._SpaceShip__addSessionStat(journalentry, 'docking_undocked')
