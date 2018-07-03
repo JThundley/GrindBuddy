@@ -5,7 +5,6 @@
 # Powerplay
 # 2 people playing on the same computer
 # community goals
-# 2.4 events that I haven't come across
 
 ###################### DOCUMENTATION #############################
 # Documentation of the log API: http://edcodex.info/?m=doc
@@ -54,11 +53,14 @@ def playerOrNpc(journalentry):
         elif not journalentry['IsPlayer']:
             return 'npc'
     except KeyError:
-        if journalentry['PlayerControlled']:
-            return 'player'
-        elif not journalentry['PlayerControlled']:
-            return 'npc'
-    raise Exception("Unable to detect player or npc. journalentry was: %s" % journalentry)
+        try:
+            if journalentry['PlayerControlled']:
+                return 'player'
+            elif not journalentry['PlayerControlled']:
+                return 'npc'
+        except KeyError:
+            pass
+    raise PlayerOrNPCFail("Unable to detect player or npc. journalentry was: %s" % journalentry)
 
 def reverse_readline(filename, buf_size=8192):
     "A generator that returns the lines of a file in reverse order, stolen from https://stackoverflow.com/questions/2301789/read-a-file-in-reverse-order-using-python lolololololol"
@@ -102,6 +104,10 @@ def timestamp_to_datetimeobj(timestamp):
 ##################### CLASSES #######################
 class NoLogsFound( Exception ):
     "Raised when no logs are found, critical error"
+    pass
+
+class PlayerOrNPCFail( Exception ):
+    "Raised when playerOrNpc couldn't figure out the answer. Non-critical error"
     pass
 
 class PositiveInt(int):
@@ -447,7 +453,12 @@ class Missions(dict):
         "Purge expired missions and call them failed. return the number of purged missions."
         total = 0
         for k in self.keys():
-            past = timestamp_to_datetimeobj(self[k]['Expiry']) < datetime.datetime.utcnow()
+            try:
+                past = timestamp_to_datetimeobj(self[k]['Expiry']) < datetime.datetime.utcnow()
+            except KeyError:
+                # Some types of special missions do not have Expiry keys, like this one:
+                # {u'Name': u'MISSION_genericPermit1', u'Faction': u'Sirius Corporation', u'timestamp': u'2018-04-02T05:27:06Z', u'Influence': u'None', u'LocalisedName': u'Permit Acquisition Opportunity', u'Reputation': u'None', u'Wing': False}
+                pass
             if past:
                 #if DEBUG:
                 #    print "Removing mission: %s < %s" % (self[k]['Expiry'], datetime.datetime.utcnow().isoformat())
@@ -494,13 +505,14 @@ class Missions(dict):
 
 class PhysicalMaterial(dict):
     "This is a dict object with a method that gets you the total amount of materials that you have."
-    maximum = 1000
+    maximum = sum((150,250,300,100,300,200,150,250,300,250,300,150,200,250,150,150,100,300,200,100,250,250,200,250,250,300,300,250,200,250,150,200,250,100,300,250,200,250,300,100,200,300,200,200,300,150,200,150,100,150,100,150,150,300,150,250,200
+                   ,300,300,150,200,200,300,250,250))
     def getTotalAmount(self):
         return sum([x['Count'] for x in self.values()])
 
 class DataMaterial(dict):
     "This is a dict object with a method that gets you the total amount of materials that you have."
-    maximum = 500
+    maximum = sum((150,100,100,300,250,300,150,200,100,200,100,150,300,150,150,300,250,250,250,100,200,100,150,300,200,250,200,250,200,300))
     def getTotalAmount(self):
         return sum(self.values())
 
@@ -611,8 +623,6 @@ class SpaceShip():
         self.cargo = Cargo() # Your regular current cargo. Consists of a dictionary of cargonames to the amount of that item and the amount of it that is haulage and stolen: { 'domesticappliances': {'amount':PositiveInt(24), 'stolen':PositiveInt(4),
         # 'haulage':PositiveInt(0)}}, ... }
         # All cargo names MUST be sanitized first, read the comments in sanitizeCargo to see why.
-        # maximum physical materials is 1000
-        # maximum data materials is 500
         self.materials = PhysicalMaterial() # dictionary of material names to the amount and type: { 'nickel': {'Type':'Raw', 'Count':PositiveInt(9)}, ... }
         self.datamaterials = DataMaterial() # AKA Encoded materials, names to count: {'embeddedfirmware': PositiveInt(9), ... } Data is split off from Materials since Data has its own storage & maximum amount
         self.missions = Missions() # a special dict of your missions, organized as a dict of missionid to the full line from the log minus the missionid: {MissionID: { "event":"MissionAccepted", "Faction":"Ahaut Front", ...}, }
@@ -710,12 +720,28 @@ class SpaceShip():
                 #   print '\n\nJournalEntry:\n' + str(journalentry) + '\n'
                 method = getattr( self, '_SpaceShip__%s%s' % ('handleEvent_', journalentry['event']) )
             except AttributeError:
-                print "Unknown log event found. Please report this to the developer. Log event is:"
-                print journalentry
-                raise Exception
+                if DEBUG: # print out a code snippet stub to paste into this script:
+                    print "Report this to the dev: JThundley@JThundley.com"
+                    print "    def __handleEvent_%s(self, journalentry):" % journalentry['event']
+                    print ''.join(("%s# " % (' '*8), str(journalentry)))
+                    print "%spass # TODO" % (' '*8)
+                    #raise Exception
+                    os.sys.exit(1)
+                else:
+                    print "Unknown log event found. Please report this to the developer. Log event is:"
+                    print journalentry
+                    raise Exception
             if self.wrongplayer and journalentry['event'] != 'LoadGame': # do not call any methods except for LoadGame to see if we came back to the correct player
                 return
             method(journalentry)
+            # # XXX DEBUG TODO!
+            # for cargoitem in self.cargo:
+            #     if self.cargo[cargoitem]['amount'] < 0:
+            #         from pprint import pprint
+            #         pprint(journalentry)
+            #         print
+            #         print self.cargo
+            #         raise Exception
             #if DEBUG: # this is for debugging unknown money
             #    for k in journalentry:
             #        try:
@@ -782,7 +808,7 @@ class SpaceShip():
         try:
             self.cargo[name]['amount'] += amount
         except KeyError:
-            self.cargo[name] = {'amount': amount, 'haulage': PositiveInt(0), 'stolen': PositiveInt(0)}
+            self.cargo[name] = {'amount': PositiveInt(amount), 'haulage': PositiveInt(0), 'stolen': PositiveInt(0)}
 
         for attr in 'haulage', 'stolen':
             if locals()[attr]:
@@ -948,6 +974,9 @@ class SpaceShip():
     def __handleEvent_ChangeCrewRole(self, journalentry):
         # {u'timestamp': u'2017-07-03T04:24:16Z', u'Role': u'Idle', u'event': u'ChangeCrewRole'}
         pass
+    def __handleEvent_CargoDepot(self, journalentry):
+        # {u'ItemsCollected': 0, u'StartMarketID': 0, u'MissionID': 383358622, u'timestamp': u'2018-05-23T03:37:24Z', u'TotalItemsToDeliver': 1452, u'UpdateType': u'WingUpdate', u'EndMarketID': 3230460672L, u'Progress': 0.0, u'ItemsDelivered': 792, u'event': u'CargoDepot'}
+        pass # TODO
     def __handleEvent_ClearSavedGame(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"ClearSavedGame", "Name":"HRC1" }
         self._SpaceShip__addSessionStat(journalentry, 'cleared_saves')
@@ -1030,6 +1059,9 @@ class SpaceShip():
         # MissionFailed events are generated shortly after dying.
         for cargo in self.cargo.keys(): # Don't just set self.cargo to empty, count each item as lost
             self._SpaceShip__loseCargo(journalentry, cargo, self.cargo[cargo]['amount'], 'lost_death')
+    def __handleEvent_DiscoveryScan(self, journalentry):
+        # {u'SystemAddress': 4271084931443L, u'timestamp': u'2018-03-07T06:39:34Z', u'event': u'DiscoveryScan', u'Bodies': 1}
+        pass # TODO
     def __handleEvent_Docked(self, journalentry):
         #{ "timestamp":"2017-08-31T04:20:07Z", "event":"Docked", "StationName":"Bode Hub", "StationType":"Outpost", "StarSystem":"Wu Guinagi", "StationFaction":"Ajoku Industries", "FactionState":"Boom", "StationGovernment":"$government_Corporate;", "StationGovernment_Localised":"Corporate", "StationAllegiance":"Empire", "StationEconomy":"$economy_Industrial;", "StationEconomy_Localised":"Industrial", "DistFromStarLS":754.817932 }
         if self.ignore_next_docked:
@@ -1091,10 +1123,16 @@ class SpaceShip():
     def __handleEvent_EngineerCraft(self, journalentry):
         # {u'Blueprint': u'ShieldBooster_HeavyDuty', u'Level': 1, u'timestamp': u'2017-08-26T03:29:18Z', u'Ingredients': [{u'Count': 1, u'Name': u'gridresistors'}], u'event': u'EngineerCraft', u'Engineer': u'Felicity Farseer'}
         # { "timestamp":"2017-09-13T03:49:26Z", "event":"EngineerCraft", "Engineer":"The Dweller", "Blueprint":"PowerDistributor_HighFrequency", "Level":2, "Ingredients":[ { "Name":"legacyfirmware", "Count":1 }, { "Name":"chemicalprocessors", "Count":1 } ] }
+        # {u'Blueprint': u'FSD_FastBoot', u'Level': 1, u'timestamp': u'2017-03-04T13:36:01Z', u'Ingredients': {u'gridresistors': 1}, u'event': u'EngineerCraft', u'Engineer': u'Felicity Farseer'} No Name key in this one!
         # First transform the Ingredients to a dict of {'IngredientName': int(count), ...}
         ingredients = {}
-        for i in journalentry['Ingredients']:
-            ingredients[i['Name']] = i['Count']
+        try:
+            journalentry['Ingredients'][0]['Name']
+        except KeyError: # different processing required for an EngineerCraft event with no Name key in Ingredients
+            ingredients = journalentry['Ingredients']
+        else:
+            for i in journalentry['Ingredients']:
+                ingredients[i['Name']] = i['Count']
         for ingredient in ingredients:
             for typestore in self.materials, self.datamaterials: # We need to look into our current store to find the ingredients so we can determine the type
                 try:
@@ -1139,6 +1177,12 @@ class SpaceShip():
     def __handleEvent_FetchRemoteModule(self, journalentry):
         # { "timestamp":"2017-09-20T02:49:36Z", "event":"FetchRemoteModule", "StorageSlot":31, "StoredItem":"$hpt_beamlaser_fixed_huge_name;", "StoredItem_Localised":"Beam Laser", "ServerId":128049431, "TransferCost":8152, "Ship":"ferdelance", "ShipID":10 }
         self._SpaceShip__loseMoney(journalentry, 'fetchremotemodule', journalentry['TransferCost'])
+    def __handleEvent_FighterDestroyed(self, journalentry):
+        # {u'timestamp': u'2018-03-26T05:50:47Z', u'event': u'FighterDestroyed'}
+        pass # TODO
+    def __handleEvent_FighterRebuilt(self, journalentry):
+        # {u'timestamp': u'2018-03-26T05:52:16Z', u'event': u'FighterRebuilt', u'Loadout': u'zero'}
+        pass # TODO
     def __handleEvent_Fileheader(self, journalentry):
         # { "timestamp":"2017-09-27T05:05:31Z", "event":"Fileheader", "part":1, "language":"English\\UK", "gameversion":"2.4", "build":"r154869/r0 " }
         pass
@@ -1147,7 +1191,11 @@ class SpaceShip():
         pass
     def __handleEvent_FuelScoop(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"FuelScoop", "Scooped":0.498700, "Total":16.000000 }
+        # wtf fuel can be negative sometimes?!
+        # {u'Scooped': -0.391147, u'timestamp': u'2017-03-08T21:53:25Z', u'Total': 15.51, u'event': u'FuelScoop'}
         # Total is your fuel level after scooping
+        if journalentry['Scooped'] <= 0: # fuck that shit
+            return
         self._SpaceShip__addSessionStat(journalentry, 'fuel_scooped', journalentry['Scooped'])
         self._SpaceShip__addSessionStat(journalentry, 'fuel_scoop_started')
     def __handleEvent_HeatDamage(self, journalentry):
@@ -1193,6 +1241,9 @@ class SpaceShip():
         else:
             post = ''
         self._SpaceShip__addSessionStat(journalentry, 'crew_kicked%s' % post)
+    def __handleEvent_LaunchDrone(self, journalentry):
+        # {u'timestamp': u'2018-03-19T05:10:39Z', u'Type': u'FuelTransfer', u'event': u'LaunchDrone'}
+        pass # TODO
     def __handleEvent_LaunchFighter(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"LaunchFighter", "Loadout":"starter", "PlayerControlled":true }
         self._SpaceShip__addSessionStat(journalentry, 'fighter_launched_%s' % playerOrNpc(journalentry))
@@ -1206,7 +1257,10 @@ class SpaceShip():
     def __handleEvent_Liftoff(self, journalentry):
         # { "timestamp":"2017-08-31T04:54:34Z", "event":"Liftoff", "PlayerControlled":true, "Latitude":-4.009589, "Longitude":153.113800 }
         # when taking off from planet surface
-        self._SpaceShip__addSessionStat(journalentry, 'planet_liftoff_%s' % playerOrNpc(journalentry))
+        try:
+            self._SpaceShip__addSessionStat(journalentry, 'planet_liftoff_%s' % playerOrNpc(journalentry))
+        except PlayerOrNPCFail: # This event sometimes doesn't say:
+            self._SpaceShip__addSessionStat(journalentry, 'planet_liftoff_player') # just call it a player liftoff
     def __handleEvent_LoadGame(self, journalentry):
         # { "timestamp":"2017-08-31T04:20:00Z", "event":"LoadGame", "Commander":"BlownUterus", "Ship":"Python", "ShipID":7, "ShipName":"", "ShipIdent":"", "FuelLevel":16.203438, "FuelCapacity":32.000000, "GameMode":"Group", "Group":"BinaryEpidemic", "Credits":205343662, "Loan":0 }
         if self.playername and (self.playername.lower() != journalentry['Commander'].lower()): # If the playername has been set in the past and the newly loaded game is for another CMDR...
@@ -1313,6 +1367,9 @@ class SpaceShip():
         else:
             for material in journalentry[ 'Encoded' ]:
                 self.datamaterials[ material[ 'Name' ] ] = PositiveInt(material['Count'])
+    def __handleEvent_MaterialTrade(self, journalentry):
+        # {u'Received': {u'Category': u'$MICRORESOURCE_CATEGORY_Encoded;', u'Category_Localised': u'Encoded', u'Material_Localised': u'Atypical Disrupted Wake Echoes', u'Material': u'disruptedwakeechoes', u'Quantity': 18}, u'timestamp': u'2018-05-20T05:02:46Z', u'Paid': {u'Category': u'$MICRORESOURCE_CATEGORY_Encoded;', u'Category_Localised': u'Encoded', u'Material_Localised': u'Strange Wake Solutions', u'Material': u'wakesolutions', u'Quantity': 2}, u'MarketID': 3230460672L, u'TraderType': u'encoded', u'event': u'MaterialTrade'}
+        pass # TODO
     def __handleEvent_MiningRefined(self, journalentry):
         # { "timestamp":"2017-08-14T14:16:43Z", "event":"MiningRefined", "Type":"$methaneclathrate_name;", "Type_Localised":"Methane Clathrate" }
         # Always a single amount
@@ -1440,6 +1497,15 @@ class SpaceShip():
         # {"timestamp": "2017-06-12T04:19:56Z", "event": "NewCommander", "Name": "BlownUterus", "Package": "Default"}
         self._SpaceShip__addSessionStat(journalentry, 'new_commander_created')
         self._SpaceShip__gainMoney(journalentry, 'missions', 1000) # you start with a grand, we'll call it mission money because I don't want a new stat for this
+    def __handleEvent_NpcCrewPaidWage(self, journalentry):
+        # {u'NpcCrewId': 65485440, u'timestamp': u'2018-03-26T02:06:22Z', u'Amount': 0, u'NpcCrewName': u'Randall Velasquez', u'event': u'NpcCrewPaidWage'}
+        pass #TODO
+    def __handleEvent_NpcCrewRank(self, journalentry):
+        # {u'NpcCrewId': 67805316, u'timestamp': u'2018-04-13T05:32:31Z', u'RankCombat': 5, u'NpcCrewName': u'Bryn Allison', u'event': u'NpcCrewRank'}
+        pass # TODO
+    def __handleEvent_Outfitting(self, journalentry):
+        # {u'StarSystem': u'Laksak', u'timestamp': u'2018-03-07T06:45:26Z', u'event': u'Outfitting', u'StationName': u'Stjepan Seljan Hub', u'MarketID': 3230427648L}
+        pass # TODO
     def __handleEvent_Passengers(self, journalentry):
         # {u'timestamp': u'2017-10-08T04:34:46Z', u'event': u'Passengers', u'Manifest': [{u'MissionID': 222448224, u'Count': 2, u'VIP': True, u'Wanted': False, u'Type': u'Tourist'}, {u'MissionID': 222448871, u'Count': 4, u'VIP': False, u'Wanted': False, u'Type': u'Refugee'}]}
         # This is a state-setting event, it always happens before Loadout to tell what passengers you currently have onboard.
@@ -1449,6 +1515,9 @@ class SpaceShip():
             self.passengers[missionid] = {}
             for key in pax:
                 self.passengers[missionid][key.lower()] = pax[key]
+    def __handleEvent_PayBounties(self, journalentry):
+        # {u'Faction_Localised': u'Federation', u'Faction': u'$faction_Federation;', u'timestamp': u'2018-05-01T04:39:19Z', u'BrokerPercentage': 25.0, u'Amount': 21504, u'ShipID': 22, u'event': u'PayBounties'}
+        pass # TODO
     def __handleEvent_PayFines(self, journalentry):
         # { "timestamp":"2016-06-10T14:32:03Z", "event":"PayFines", "Amount":1791 }
         self._SpaceShip__loseMoney(journalentry, 'fines', journalentry['Amount'])
@@ -1623,6 +1692,9 @@ class SpaceShip():
         # {u'timestamp': u'2018-02-28T07:01:23Z', u'event': u'Shutdown'}
         # new to 3.0
         pass # TODO
+    def __handleEvent_SRVDestroyed(self, journalentry):
+        # {u'timestamp': u'2018-06-06T02:02:33Z', u'event': u'SRVDestroyed'}
+        pass # TODO
     def __handleEvent_StartJump(self, journalentry):
         # { "timestamp":"2017-08-31T04:30:10Z", "event":"StartJump", "JumpType":"Supercruise" }
         self._SpaceShip__addSessionStat(journalentry, 'fsd_jump_started')
@@ -1633,6 +1705,17 @@ class SpaceShip():
         # u'Recipes_Generated_Rank_5': 38, u'Recipes_Generated_Rank_4': 10}, u'Crime': {u'Total_Bounties': 178475, u'Bounties_Received': 131, u'Notoriety': 0, u'Highest_Bounty': 6000, u'Fines': 125, u'Total_Fines': 804364},
         # u'Trading': {u'Resources_Traded': 4060, u'Average_Profit': 9823.1912632822, u'Market_Profits': 8320243, u'Highest_Single_Transaction': 94444, u'Markets_Traded_With': 49}, u'Material_Trader_Stats': {u'Trades_Completed': 0, u'Materials_Traded': 0}, u'Exploration': {u'Total_Hyperspace_Jumps': 1307, u'Highest_Payout': 2751104, u'Planets_Scanned_To_Level_2': 46, u'Planets_Scanned_To_Level_3': 486, u'Systems_Visited': 543, u'Exploration_Profits': 45919760, u'Greatest_Distance_From_Start': 454.8910133036, u'Total_Hyperspace_Distance': 18977, u'Time_Played': 1489020}, u'Crew': {}, u'event': u'Statistics', u'Bank_Account': {u'Spent_On_Ammo_Consumables': 306969, u'Spent_On_Outfitting': 1041261183, u'Spent_On_Insurance': 182211574, u'Spent_On_Ships': 312596164, u'Insurance_Claims': 46, u'Spent_On_Fuel': 131124, u'Current_Wealth': 2381154098L, u'Spent_On_Repairs': 18230313}, u'Search_And_Rescue': {u'SearchRescue_Traded': 5, u'SearchRescue_Count': 3, u'SearchRescue_Profit': 3316}}
         # New to 3.0
+        pass # TODO
+    def __handleEvent_StoredModules(self, journalentry):
+        # {u'StarSystem': u'Laksak', u'timestamp': u'2018-03-07T06:45:26Z', u'MarketID': 3230427648L, u'StationName': u'Stjepan Seljan Hub', u'Items': [{u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 220, u'Name': u'$int_passengercabin_size4_class1_name;', u'BuyPrice': 18954, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'EC Passenger Cabin', u'StorageSlot': 7}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 220, u'Name': u'$int_passengercabin_size4_class1_name;', u'BuyPrice': 18954, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'EC Passenger Cabin', u'StorageSlot': 10}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 484, u'Name': u'$int_buggybay_size2_class2_name;', u'BuyPrice': 21600, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$int_buggybay_size2_class1_name;', u'StorageSlot': 50}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 313, u'Name': u'$int_cargorack_size4_class1_name;', u'BuyPrice': 33470,
+        #     u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_CargoRack_Size1_Class1_Name;', u'StorageSlot': 4}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 313, u'Name': u'$int_cargorack_size4_class1_name;', u'BuyPrice': 33470, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_CargoRack_Size1_Class1_Name;', u'StorageSlot': 52}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 313, u'Name': u'$int_cargorack_size4_class1_name;', u'BuyPrice': 33470, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_CargoRack_Size1_Class1_Name;', u'StorageSlot': 53}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 322, u'Name': u'$int_passengercabin_size5_class1_name;', u'BuyPrice': 34954, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 14}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 322, u'Name': u'$int_passengercabin_size5_class1_name;', u'BuyPrice': 34954, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 17}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 322, u'Name': u'$int_passengercabin_size5_class1_name;', u'BuyPrice': 34954, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 19}, {u'StarSystem': u'LHS 2026', u'TransferCost': 473, u'Name': u'$hpt_pulselaser_gimbal_medium_name;', u'BuyPrice': 35400, u'Hot': False, u'MarketID': 3228570880L, u'TransferTime': 2025, u'Name_Localised': u'Pulse Laser', u'StorageSlot': 12}, {u'StarSystem': u'LHS 2026', u'TransferCost': 473, u'Name': u'$hpt_pulselaser_gimbal_medium_name;', u'BuyPrice': 35400, u'Hot': False, u'MarketID': 3228570880L, u'TransferTime': 2025, u'Name_Localised': u'Pulse Laser', u'StorageSlot': 13}, {u'StarSystem': u'LHS 2026', u'TransferCost': 473, u'Name': u'$hpt_pulselaser_gimbal_medium_name;', u'BuyPrice': 35400, u'Hot': False, u'MarketID': 3228570880L, u'TransferTime': 2025, u'Name_Localised': u'Pulse Laser', u'StorageSlot': 16}, {u'StarSystem': u'Rhea', u'TransferCost': 463, u'Name': u'$hpt_pulselaser_gimbal_medium_name;', u'BuyPrice': 35400, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime':
+        #     1976, u'Name_Localised': u'Pulse Laser', u'StorageSlot': 27}, {u'StarSystem': u'LQ Hydrae', u'TransferCost': 560, u'Name': u'$hpt_pulselaserburst_gimbal_medium_name;', u'BuyPrice': 47288, u'Hot': False, u'MarketID': 3228616960L, u'TransferTime': 1890, u'Name_Localised': u'Burst Laser', u'StorageSlot': 29}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 420, u'Name': u'$hpt_railgun_fixed_small_name;', u'BuyPrice': 50310, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'Rail Gun', u'StorageSlot': 21}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 420, u'Name': u'$hpt_railgun_fixed_small_name;', u'BuyPrice': 50310, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'Rail Gun', u'StorageSlot': 26}, {u'StarSystem': u'Rhea', u'TransferCost': 661, u'Name': u'$hpt_slugshot_gimbal_small_name;', u'BuyPrice': 54720, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_Slugshot_Turret_Small_Name;', u'StorageSlot': 5}, {u'StarSystem': u'Rhea', u'TransferCost': 661, u'Name': u'$hpt_slugshot_gimbal_small_name;', u'BuyPrice': 54720, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_Slugshot_Turret_Small_Name;', u'StorageSlot': 6}, {u'StarSystem': u'Deciat', u'TransferCost': 837, u'Name': u'$hpt_multicannon_gimbal_medium_name;', u'BuyPrice': 55575, u'Hot': False, u'MarketID': 3229756160L, u'TransferTime': 2479, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 30}, {u'StarSystem': u'Rhea', u'TransferCost': 684, u'Name': u'$hpt_multicannon_gimbal_medium_name;', u'BuyPrice': 57000, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 35}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 1115, u'Name': u'$hpt_multicannon_gimbal_medium_name;', u'BuyPrice': 57000, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 36}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 1115, u'Name': u'$hpt_multicannon_gimbal_medium_name;', u'BuyPrice': 57000, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 37}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 1115, u'Name': u'$hpt_multicannon_gimbal_medium_name;', u'BuyPrice': 57000, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 38}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 491, u'Name': u'$int_passengercabin_size6_class1_name;', u'BuyPrice': 61410, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 24}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 491, u'Name': u'$int_passengercabin_size6_class1_name;', u'BuyPrice': 61410, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 25}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 491, u'Name': u'$int_passengercabin_size6_class1_name;', u'BuyPrice': 61410, u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 40}, {u'StarSystem': u'Rhea', u'TransferCost': 729, u'Name': u'$int_passengercabin_size6_class1_name;', u'BuyPrice': 61410, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Int_PassengerCabin_Size4_Class1_Name;', u'StorageSlot': 54}, {u'StarSystem': u'LTT 10823', u'TransferCost': 968, u'Name': u'$int_powerdistributor_size4_class3_name;', u'BuyPrice': 70932, u'Hot': False, u'MarketID': 3223371520L, u'TransferTime': 2306, u'Name_Localised': u'$Int_PowerDistributor_Size1_Class1_Name;', u'StorageSlot': 41}, {u'StarSystem': u'Rhea', u'TransferCost': 1097, u'Name': u'$int_dronecontrol_collection_size5_class2_name;', u'BuyPrice': 97200, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Int_DroneControl_Collection_Size1_Class1_Name;', u'StorageSlot': 18}, {u'StarSystem': u'Amun', u'TransferCost': 1083, u'Name': u'$int_dronecontrol_fueltransfer_size5_class2_name;', u'BuyPrice': 97200, u'Hot': False, u'MarketID': 3228674304L, u'TransferTime': 1952, u'Name_Localised': u'$Int_DroneControl_FuelTransfer_Size1_Class1_Name;', u'StorageSlot': 20}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 2466, u'Name': u'$hpt_pulselaser_turret_medium_name;', u'BuyPrice': 132800, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Hpt_PulseLaser_Turret_Large_Name;', u'StorageSlot': 47}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 2466, u'Name': u'$hpt_pulselaser_turret_medium_name;', u'BuyPrice': 132800, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Hpt_PulseLaser_Turret_Large_Name;', u'StorageSlot': 49}, {u'StarSystem': u'Rhea', u'TransferCost': 1724, u'Name': u'$int_shieldcellbank_size3_class5_name;', u'BuyPrice': 158331, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Int_ShieldCellBank_Size1_Class1_Name;', u'StorageSlot': 51}, {u'StarSystem': u'Giryak',
+        #     u'TransferCost': 707, u'Name': u'$int_engine_size5_class2_name;', u'BuyPrice': 189035, u'Quality': 0.0, u'EngineerModifications': u'Engine_Tuned', u'Hot': False, u'MarketID': 3230605824L, u'TransferTime': 802, u'Name_Localised': u'$Int_Engine_Size2_Class1_Name;', u'Level': 3, u'StorageSlot': 28}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 4064, u'Name': u'$int_sensors_size6_class2_name;', u'BuyPrice': 222444, u'Quality': 0.0, u'EngineerModifications': u'Sensor_Sensor_WideAngle', u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Int_Sensors_Size1_Class1_Name;', u'Level': 1, u'StorageSlot': 59}, {u'StarSystem': u'LTT 10823', u'TransferCost': 3137, u'Name': u'$hpt_beamlaser_fixed_medium_name;', u'BuyPrice': 248228, u'Hot': False, u'MarketID': 3223371520L, u'TransferTime': 2306, u'Name_Localised': u'Beam Laser', u'StorageSlot': 43}, {u'StarSystem': u'Rhea', u'TransferCost': 2982, u'Name': u'$hpt_shieldbooster_size0_class5_name;', u'BuyPrice': 281000, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_ShieldBooster_Size0_Class1_Name;', u'StorageSlot': 2}, {u'StarSystem': u'Rhea', u'TransferCost': 3018, u'Name': u'$hpt_slugshot_fixed_medium_name;', u'BuyPrice': 284544, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'Frag Cannon', u'StorageSlot': 31}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 6617, u'Name': u'$hpt_cargoscanner_size0_class4_name;', u'BuyPrice': 365698, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Hpt_CargoScanner_Size0_Class1_Name;', u'StorageSlot': 33}, {u'StarSystem': u'Rhea', u'TransferCost': 4590, u'Name': u'$hpt_slugshot_gimbal_medium_name;', u'BuyPrice':
+        #     437760, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_Slugshot_Turret_Small_Name;', u'StorageSlot': 11}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 9125, u'Name': u'$hpt_cannon_turret_small_name;', u'BuyPrice': 506400, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Hpt_Cannon_Fixed_Small_Name;', u'StorageSlot': 8}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 9152, u'Name': u'$int_shieldgenerator_size3_class5_name;', u'BuyPrice': 507912, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Int_ShieldGenerator_Size1_Class1_Name;', u'StorageSlot': 55}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 10409, u'Name': u'$hpt_multicannon_gimbal_large_name;', u'BuyPrice': 578436, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'Multi-Cannon', u'StorageSlot': 57}, {u'StarSystem': u'LTT 9455', u'TransferCost': 5394, u'Name': u'$int_dronecontrol_repair_size5_class5_name;', u'BuyPrice': 758160, u'Hot': False, u'MarketID': 3224122624L, u'TransferTime': 1430, u'Name_Localised': u'$Int_DroneControl_Repair_Size1_Class1_Name;', u'StorageSlot': 3}, {u'StarSystem': u'LP 726-6', u'TransferCost': 8442, u'Name': u'$int_dronecontrol_collection_size5_class5_name;', u'BuyPrice': 777600, u'Hot': False, u'MarketID': 3228550400L, u'TransferTime': 2054, u'Name_Localised': u'$Int_DroneControl_Collection_Size1_Class1_Name;', u'StorageSlot': 23}, {u'StarSystem': u'Wyrd', u'TransferCost': 6142, u'Name': u'$int_dronecontrol_resourcesiphon_size5_class5_name;', u'BuyPrice': 777600, u'Hot': False, u'MarketID': 128004608, u'TransferTime': 1561, u'Name_Localised': u'$Int_DroneControl_ResourceSiphon_Size1_Class1_Name;', u'StorageSlot': 46}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 15741, u'Name': u'$hpt_pulselaser_gimbal_huge_name;', u'BuyPrice': 877600, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'Pulse Laser', u'StorageSlot': 39}, {u'StarSystem': u'Rhea', u'TransferCost': 11353, u'Name': u'$hpt_cloudscanner_size0_class5_name;', u'BuyPrice': 1097095, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_CloudScanner_Size0_Class1_Name;', u'StorageSlot': 34}, {u'StarSystem': u'Rhea', u'TransferCost': 11353, u'Name': u'$hpt_crimescanner_size0_class5_name;', u'BuyPrice': 1097095, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Hpt_CrimeScanner_Size0_Class1_Name;', u'StorageSlot':
+        #     56}, {u'StarSystem': u'Upsilon Aquarii', u'TransferCost': 8043, u'Name': u'$hpt_pulselaserburst_gimbal_huge_name;', u'BuyPrice': 1245600, u'Quality': 0.0, u'EngineerModifications': u'Weapon_ShortRange', u'Hot': False, u'MarketID': 3223972864L, u'TransferTime': 1329, u'Name_Localised': u'Burst Laser', u'Level': 3, u'StorageSlot': 9}, {u'StarSystem': u'LQ Hydrae', u'TransferCost': 15150, u'Name': u'$int_stellarbodydiscoveryscanner_advanced_name;', u'BuyPrice': 1545000, u'Hot':
+        #     False, u'MarketID': 3228616960L, u'TransferTime': 1890, u'Name_Localised': u'D - Scanner', u'StorageSlot': 15}, {u'StarSystem': u'Wu Guinagi', u'TransferCost':
+        #     42806, u'Name': u'$hpt_beamlaser_gimbal_large_name;', u'BuyPrice': 2396160, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Hpt_BeamLaser_Gimbal_Small_Name;', u'StorageSlot': 48}, {u'StarSystem': u'Rhea', u'TransferCost': 28016, u'Name': u'$int_fsdinterdictor_size2_class5_name;', u'BuyPrice': 2721600, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Int_FSDInterdictor_Size1_Class1_Name;', u'StorageSlot': 58}, {u'StarSystem': u'HIP 8758', u'TransferCost': 82896, u'Name': u'$int_repairer_size4_class5_name;', u'BuyPrice': 4723920, u'Hot': False, u'MarketID': 3222057728L, u'TransferTime': 3187, u'Name_Localised': u'$Int_Repairer_Name;', u'StorageSlot': 42}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 91066, u'Name': u'$int_powerplant_size5_class5_name;', u'BuyPrice': 5103953, u'Quality': 0.0, u'EngineerModifications': u'PowerPlant_Armoured', u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Int_Powerplant_Size1_Class1_Name;', u'Level': 1, u'StorageSlot': 60}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 128261, u'Name': u'$int_fuelscoop_size6_class4_name;', u'BuyPrice': 7190903, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Int_FuelScoop_Size1_Class1_Name;', u'StorageSlot': 45}, {u'StarSystem': u'Rhea', u'TransferCost': 76311, u'Name': u'$int_fsdinterdictor_size3_class5_name;', u'BuyPrice': 7429968, u'Hot': False, u'MarketID': 3228207616L, u'TransferTime': 1976, u'Name_Localised': u'$Int_FSDInterdictor_Size1_Class1_Name;', u'StorageSlot': 44}, {u'StarSystem': u'LQ Hydrae', u'TransferCost': 85299, u'Name': u'$hpt_beamlaser_gimbal_huge_name;', u'BuyPrice': 8746160, u'Hot': False, u'MarketID': 3228616960L, u'TransferTime': 1890, u'Name_Localised': u'$Hpt_BeamLaser_Gimbal_Small_Name;', u'StorageSlot': 1}, {u'StarSystem': u'Wu Guinagi', u'TransferCost': 288463, u'Name': u'$int_shieldgenerator_size6_class5_name;', u'BuyPrice': 16179531, u'Hot': False, u'MarketID': 3222070272L, u'TransferTime': 3237, u'Name_Localised': u'$Int_ShieldGenerator_Size1_Class1_Name;', u'StorageSlot':
+        #     32}], u'event': u'StoredModules'}
         pass # TODO
     def __handleEvent_StoredShips(self, journalentry):
         # {u'StarSystem': u'Tau Ceti', u'timestamp': u'2018-02-28T06:42:23Z', u'MarketID': 128126968, u'ShipsRemote': [{u'StarSystem': u'Rhea', u'ShipMarketID': 3228207616L, u'Hot': False, u'Value': 3292041, u'TransferTime': 1021, u'ShipType_Localised': u'Viper MkIII', u'ShipType': u'Viper', u'TransferPrice': 15912, u'ShipID': 1}, {u'StarSystem': u'Momoirent', u'ShipMarketID': 3228761344L, u'Hot': False, u'Value': 14703347, u'TransferTime': 936, u'ShipType_Localised': u'Asp Explorer',
@@ -1656,11 +1739,11 @@ class SpaceShip():
         # { "timestamp":"2017-08-31T04:35:15Z", "event":"SupercruiseExit", "StarSystem":"Wu Guinagi", "Body":"Ziegel Dock", "BodyType":"Station" }
         self._SpaceShip__addSessionStat(journalentry, 'supercruise_exited')
     def __handleEvent_Synthesis(self, journalentry):
-        # { "timestamp":"2016-06-10T14:32:03Z", "event":"Synthesis", "Name":"Repair Basic", "Materials":{ "iron":2, "nickel":1 } }
+        # {u'timestamp': u'2017-03-08T15:22:03Z', u'Materials': {u'sulphur': 1, u'phosphorus': 1}, u'event': u'Synthesis', u'Name': u'Fuel Basic'}
         self._SpaceShip__addSessionStat(journalentry, 'synthesized_something')
         for material in journalentry['Materials']:
             # we call the material raw here, it shouldn't matter if it's manufactured. We just need to specify that it's a physical material and not data
-            self._SpaceShip__changeMaterial(journalentry, 'Raw', material['Name'], -material['Count'], 'synthesis')
+            self._SpaceShip__changeMaterial(journalentry, 'Raw', material, -journalentry['Materials'][material], 'synthesis')
     def __handleEvent_Touchdown(self, journalentry):
         # { "timestamp":"2017-08-31T04:52:38Z", "event":"Touchdown", "PlayerControlled":true, "Latitude":-4.009590, "Longitude":153.113800 }
         self._SpaceShip__addSessionStat(journalentry, 'planet_landings')
@@ -1774,8 +1857,8 @@ if __name__ == '__main__':
             if s.cargo[cargo]['haulage']:
                 print '\t\thaulage: %s' % s.cargo[cargo]['haulage']
 
-    print "Current Physical Materials: %s/1000" % s.materials.getTotalAmount()
-    print "Current Data Materials: %s/500" % s.datamaterials.getTotalAmount()
+    print "Current Physical Materials: %s/%s" % (s.materials.getTotalAmount(), format(s.materials.maximum, ','))
+    print "Current Data Materials: %s/%s" % (s.datamaterials.getTotalAmount(), format(s.datamaterials.maximum, ','))
 
     # print out info about missions:
     s.missions.purgeExpired()
